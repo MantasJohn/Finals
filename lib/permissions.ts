@@ -44,7 +44,7 @@ export const ROLE_INFO: Record<
   student: {
     title: 'Student Profile',
     tagline: 'Scan event QR codes and keep track of your attendance.',
-    accent: '#4A90D9',
+    accent: '#2563EB',
     privileges: [
       'View available events',
       'Scan an event QR code to record attendance',
@@ -55,7 +55,7 @@ export const ROLE_INFO: Record<
   teacher: {
     title: 'Teacher Profile',
     tagline: 'Create events and monitor who attended.',
-    accent: '#2E7D5B',
+    accent: '#0F766E',
     privileges: [
       'Create, edit and delete your events',
       'Generate and display event QR codes',
@@ -66,7 +66,7 @@ export const ROLE_INFO: Record<
   admin: {
     title: 'Administrator Profile',
     tagline: 'Oversee users, events and attendance across the system.',
-    accent: '#8E44AD',
+    accent: '#B45309',
     privileges: [
       'Manage users and assign roles',
       'Manage every event in the system',

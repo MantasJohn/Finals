@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   countBadge: {
-    backgroundColor: '#2E7D32',
+    backgroundColor: COLORS.primary,
     borderRadius: 12,
     minWidth: 26,
     paddingHorizontal: 8,

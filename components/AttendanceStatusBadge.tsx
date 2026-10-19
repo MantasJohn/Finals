@@ -9,7 +9,7 @@ import {
 const STATUS_COLORS: Record<string, string> = {
   present: COLORS.success,
   late: COLORS.warning,
-  excused: '#4A90D9',
+  excused: COLORS.info,
   absent: COLORS.danger,
 };
 
