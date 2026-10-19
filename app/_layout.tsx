@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Redirect, Stack, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { COLORS } from '@/constants/colors';
 import { initializeAuth, useAuth } from '@/lib/auth';
@@ -7,11 +7,29 @@ import { initializeAuth, useAuth } from '@/lib/auth';
 export default function RootLayout() {
   const { session, loading } = useAuth();
   const segments = useSegments();
+  const router = useRouter();
 
   // Restore the persisted session once, on first mount.
   useEffect(() => {
     initializeAuth();
   }, []);
+
+  // Keep navigation in sync with the auth state. The redirect has to happen in
+  // an effect (router.replace) — rendering <Redirect> as a child of <Stack>
+  // does not work, because a navigator only renders its <Stack.Screen>
+  // children.
+  useEffect(() => {
+    if (loading) return;
+    const path = segments?.[0];
+    const inAuthGroup = path === 'login' || path === 'register';
+    const inTabsGroup = path === '(tabs)';
+
+    if (!session && inTabsGroup) {
+      router.replace('/login');
+    } else if (session && inAuthGroup) {
+      router.replace('/(tabs)');
+    }
+  }, [session, loading, segments, router]);
 
   if (loading) {
     return (
@@ -21,14 +39,8 @@ export default function RootLayout() {
     );
   }
 
-  const path = segments?.[0];
-  const inAuthGroup = path === 'login' || path === 'register';
-  const inTabsGroup = path === '(tabs)';
-
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {!session && inTabsGroup && <Redirect href="/login" />}
-      {session && inAuthGroup && <Redirect href="/(tabs)" />}
       <Stack.Screen name="login" />
       <Stack.Screen name="register" />
       <Stack.Screen name="forgot-password" />

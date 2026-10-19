@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
 import * as Linking from 'expo-linking';
 import { supabase } from './supabase';
 import type { Session, User } from '@supabase/supabase-js';
@@ -17,31 +17,46 @@ let globalLoading = true;
 let listeners: Set<() => void> = new Set();
 let initialized = false;
 
-function notify() {
-  listeners.forEach((l) => l());
+// A single immutable snapshot object. `useSyncExternalStore` compares snapshots
+// by reference, so we only build a new one when the auth state actually
+// changes. (Building a new object every render causes an infinite re-render.)
+let snapshot: AuthState = buildSnapshot();
+
+function buildSnapshot(): AuthState {
+  return {
+    session: globalSession,
+    user: globalUser,
+    loading: globalLoading,
+  };
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getSnapshot(): AuthState {
+  return snapshot;
 }
 
 export function setAuth(session: Session | null) {
   globalSession = session;
   globalUser = session?.user ?? null;
   globalLoading = false;
-  notify();
+  snapshot = buildSnapshot();
+  listeners.forEach((l) => l());
 }
 
+/**
+ * Subscribe to the in-memory auth state. Uses `useSyncExternalStore` so the
+ * component always reads the latest value — this also keeps it correct when the
+ * React Compiler (`experiments.reactCompiler`) is enabled, which otherwise
+ * memoizes a plain module-state hook and freezes it on its first value.
+ */
 export function useAuth(): AuthState {
-  const [, forceRender] = useState(0);
-
-  useEffect(() => {
-    const listener = () => forceRender((n) => n + 1);
-    listeners.add(listener);
-    return () => { listeners.delete(listener); };
-  }, []);
-
-  return {
-    session: globalSession,
-    user: globalUser,
-    loading: globalLoading,
-  };
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 /**

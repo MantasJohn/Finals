@@ -118,6 +118,15 @@ at the database, so these views can never leak another user's data:
 students read only their own rows, teachers only rows for events they created,
 and administrators all rows.
 
+> Cross-table checks (student role, "teacher owns this event") live in
+> `security definer` helper functions — `is_admin()`, `is_student()` and
+> `owns_event(uuid)`. Keeping those subqueries **out** of the policy bodies is
+> what prevents the `infinite recursion detected in policy for relation
+> "attendance"` error. If that error ever appears, run
+> `supabase/fix-attendance-rls.sql` once: it drops every policy on `events` and
+> `attendance` (including stale ones from earlier versions) and recreates them
+> using the helpers.
+
 ---
 
 ## QR ATTENDANCE FLOW

@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import DateTimePicker, {
+  DateTimePickerAndroid,
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { useCallback, useEffect, useState } from 'react';
@@ -29,12 +30,8 @@ import {
   type EventStatus,
 } from '@/lib/events';
 
-function toLocalISO(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return (
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
-    `T${pad(date.getHours())}:${pad(date.getMinutes())}:00`
-  );
+function toStorageISO(date: Date) {
+  return date.toISOString();
 }
 
 function formatDateTime(date: Date) {
@@ -83,7 +80,6 @@ function EventEditorContent() {
   const [startDate, setStartDate] = useState(() => new Date());
   const [endDate, setEndDate] = useState(() => new Date(Date.now() + 60 * 60 * 1000));
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
-  const [editingPart, setEditingPart] = useState<'date' | 'time'>('date');
 
   const isAndroid = Platform.OS === 'android';
 
@@ -110,16 +106,65 @@ function EventEditorContent() {
     };
   }, [id]);
 
+  const applyDateValue = (target: EditTarget, next: Date) => {
+    if (target === 'start') setStartDate(next);
+    else setEndDate(next);
+  };
+
+  // Android shows the date and the time as two separate dialogs. Use the
+  // imperative API so the time dialog reliably opens right after a date is
+  // chosen — flipping `mode` on the mounted declarative component is
+  // unreliable on Android and could leave the time stuck at its old value.
+  const openAndroidPicker = (target: EditTarget) => {
+    const current = target === 'start' ? startDate : endDate;
+
+    DateTimePickerAndroid.open({
+      value: current,
+      mode: 'date',
+      onChange: (event, pickedDate) => {
+        if (event.type !== 'set' || !pickedDate) return;
+
+        const withDate = new Date(current);
+        withDate.setFullYear(
+          pickedDate.getFullYear(),
+          pickedDate.getMonth(),
+          pickedDate.getDate()
+        );
+
+        DateTimePickerAndroid.open({
+          value: withDate,
+          mode: 'time',
+          is24Hour: false,
+          onChange: (timeEvent, pickedTime) => {
+            const withTime = new Date(withDate);
+            if (timeEvent.type === 'set' && pickedTime) {
+              withTime.setHours(
+                pickedTime.getHours(),
+                pickedTime.getMinutes(),
+                0,
+                0
+              );
+            }
+            applyDateValue(target, withTime);
+          },
+        });
+      },
+    });
+  };
+
   const openPicker = (target: EditTarget) => {
+    if (isAndroid) {
+      openAndroidPicker(target);
+      return;
+    }
+    // iOS uses a single inline date + time picker.
     setEditTarget(target);
-    setEditingPart('date');
   };
 
   const onPickerChange = (event: DateTimePickerEvent, selected?: Date) => {
     if (!editTarget) return;
     if (event.type === 'dismissed' || !selected) {
       setEditTarget(null);
-      setEditingPart('date');
       return;
     }
 
@@ -128,15 +173,7 @@ function EventEditorContent() {
     next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
     next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
 
-    if (editTarget === 'start') setStartDate(next);
-    else setEndDate(next);
-
-    if (isAndroid && editingPart === 'date') {
-      setEditingPart('time');
-    } else {
-      setEditTarget(null);
-      setEditingPart('date');
-    }
+    applyDateValue(editTarget, next);
   };
 
   const handleQuickEnd = (ms: number) => {
@@ -165,8 +202,8 @@ function EventEditorContent() {
       title: title.trim(),
       venue: venue.trim(),
       description: description.trim(),
-      start: toLocalISO(startDate),
-      end: toLocalISO(endDate),
+      start: toStorageISO(startDate),
+      end: toStorageISO(endDate),
       status,
     };
 
@@ -337,12 +374,12 @@ function EventEditorContent() {
         disabled={saving}
       />
 
-      {editTarget && (
+      {!isAndroid && editTarget && (
         <View style={styles.pickerContainer}>
           <DateTimePicker
             value={editTarget === 'start' ? startDate : endDate}
-            mode={isAndroid ? editingPart : 'datetime'}
-            display={isAndroid ? 'default' : 'spinner'}
+            mode="datetime"
+            display="spinner"
             onChange={onPickerChange}
           />
         </View>

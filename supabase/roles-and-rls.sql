@@ -32,6 +32,43 @@ $$;
 
 grant execute on function public.is_admin() to authenticated;
 
+-- 1b) Role / ownership helpers -----------------------------------------------
+-- Cross-table checks inside RLS policies must live in `security definer`
+-- functions. A raw subquery inside a policy re-enters the other table's
+-- policies, which recurses (and Postgres aborts with "infinite recursion
+-- detected in policy") as soon as the other table points back at this one.
+create or replace function public.is_student()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid()
+      and role = 'student'
+  );
+$$;
+
+grant execute on function public.is_student() to authenticated;
+
+create or replace function public.owns_event(p_event_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.events
+    where id = p_event_id
+      and created_by = auth.uid()
+  );
+$$;
+
+grant execute on function public.owns_event(uuid) to authenticated;
+
 
 -- 2) Row level security ------------------------------------------------------
 alter table public.profiles   enable row level security;
@@ -90,11 +127,7 @@ create policy "attendance_select"
   using (
     auth.uid() = student_id
     or public.is_admin()
-    or exists (
-      select 1 from public.events e
-      where e.id = attendance.event_id
-        and e.created_by = auth.uid()
-    )
+    or public.owns_event(event_id)
   );
 
 drop policy if exists "attendance_insert" on public.attendance;
@@ -104,11 +137,7 @@ create policy "attendance_insert"
     -- students may only ever insert their own row...
     auth.uid() = student_id
     -- ...and only accounts whose profile role is 'student'.
-    and exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid()
-        and p.role = 'student'
-    )
+    and public.is_student()
   );
 
 drop policy if exists "attendance_update" on public.attendance;
@@ -122,11 +151,7 @@ create policy "attendance_delete"
   on public.attendance for delete
   using (
     public.is_admin()
-    or exists (
-      select 1 from public.events e
-      where e.id = attendance.event_id
-        and e.created_by = auth.uid()
-    )
+    or public.owns_event(event_id)
   );
 
 

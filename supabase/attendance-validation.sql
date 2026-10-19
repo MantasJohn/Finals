@@ -49,15 +49,28 @@ create trigger trg_prevent_closed_event_attendance
 -- 3) Unauthorized attendance recording ----------------------------------------
 -- See `roles-and-rls.sql`: the `attendance_insert` policy only allows a signed-in
 -- user whose profile role is 'student' to insert a row for their own account.
--- Re-assert it here so this file is self-contained.
+-- The role check lives in a `security definer` function so the policy cannot
+-- recurse into the `profiles` policies.
+create or replace function public.is_student()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid()
+      and role = 'student'
+  );
+$$;
+
+grant execute on function public.is_student() to authenticated;
+
 drop policy if exists "attendance_insert" on public.attendance;
 create policy "attendance_insert"
   on public.attendance for insert
   with check (
     auth.uid() = student_id
-    and exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid()
-        and p.role = 'student'
-    )
+    and public.is_student()
   );

@@ -4,10 +4,9 @@
     "slug": "QR-ATT",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/Icon.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "qr-attendance",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -18,7 +17,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.neilsho.QRATT"
     },
@@ -38,7 +36,13 @@
         }
       ],
       "expo-sqlite",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow this app to use your camera."
+        }
+      ]
     ],
     "experiments": {
       "reactCompiler": true
@@ -48,18 +52,6 @@
       "eas": {
         "projectId": "0ecdf624-9855-4530-adc6-c39b45d16d79"
       }
-    },
-  
-   "expo": {
-    "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow this app to use your camera."
-        }
-      ]
-    ]
-   }
-
+    }
   }
 }
